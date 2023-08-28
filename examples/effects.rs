@@ -25,9 +25,9 @@ trait Log {
 //             async fn log(&self, message: &str) {
 //                 let log = self.log.clone();
 //                 let _: () = {
-//                     self.reset_handler.shift(move |cc| async move {
+//                     self.reset_handler.shift(move |resume| async move {
 //                         log(message);
-//                         cc(()).await
+//                         resume(()).await
 //                     })
 //                 }
 //                 .await;
@@ -52,15 +52,15 @@ trait Cancel<T> {
 async fn handle_cancel<'a, T: 'a, Fut: Future<Output = T> + 'a>(
     f: impl FnOnce(Box<dyn Cancel<T> + 'a>) -> Fut + 'a,
 ) -> T {
-    reset(|reset_handler| async move {
+    prompt(|reset_handler| async move {
         struct CancelHandler<'a, T> {
-            reset_handler: ResetHandlerImpl<'a, T>,
+            reset_handler: PromptImpl<'a, T>,
         }
 
         #[async_trait(?Send)]
         impl<'a, T> Cancel<T> for CancelHandler<'a, T> {
             async fn cancel(&self, value: T) -> Infallible {
-                let _: () = { self.reset_handler.shift(|_cc| async { value }) }.await;
+                let _: () = { self.reset_handler.pause(|_cc| async { value }) }.await;
                 unreachable!()
             }
         }

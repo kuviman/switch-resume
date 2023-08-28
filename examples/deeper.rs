@@ -27,7 +27,7 @@ async fn transition<T>(desc: String, into: impl Future<Output = T>) -> T {
 }
 
 async fn enter_impl<'a>(
-    ctx: &'a ResetHandlerImpl<'_, ()>,
+    pause: &'a PromptImpl<'_, ()>,
     actions: &'a mut dyn Iterator<Item = Action>,
     depth: u16,
 ) {
@@ -36,11 +36,12 @@ async fn enter_impl<'a>(
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         transition(
             format!("entering {}", depth + 1),
-            enter(ctx, actions, depth + 1),
+            enter(pause, actions, depth + 1),
         )
         .await;
         println!("Now back to depth {depth}");
-        ctx.shift(move |cc| transition(format!("back to {depth}"), cc(())))
+        pause
+            .pause(move |resume| transition(format!("back to {depth}"), resume(())))
             .await;
     }
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -48,18 +49,18 @@ async fn enter_impl<'a>(
 }
 
 fn enter<'a>(
-    ctx: &'a ResetHandlerImpl<'_, ()>,
+    pause: &'a PromptImpl<'_, ()>,
     actions: &'a mut dyn Iterator<Item = Action>,
     depth: u16,
 ) -> LocalBoxFuture<'a, ()> {
-    enter_impl(ctx, actions, depth).boxed_local()
+    enter_impl(pause, actions, depth).boxed_local()
 }
 
 #[tokio::main]
 async fn main() {
-    reset(|ctx| async move {
+    prompt(|pause| async move {
         enter(
-            &ctx,
+            &pause,
             &mut [Action::Deeper, Action::Deeper, Action::Back, Action::Deeper]
                 .into_iter()
                 .inspect(|action| println!("Performing {action:?}")),
