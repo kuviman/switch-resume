@@ -27,7 +27,7 @@ async fn transition<T>(desc: String, into: impl Future<Output = T>) -> T {
 }
 
 async fn enter_impl<'a>(
-    pause: &'a PromptImpl<'_, ()>,
+    prompt: &'a Prompt<'_, ()>,
     actions: &'a mut dyn Iterator<Item = Action>,
     depth: u16,
 ) {
@@ -36,11 +36,11 @@ async fn enter_impl<'a>(
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         transition(
             format!("entering {}", depth + 1),
-            enter(pause, actions, depth + 1),
+            enter(prompt, actions, depth + 1),
         )
         .await;
         println!("Now back to depth {depth}");
-        pause
+        prompt
             .pause(move |resume| transition(format!("back to {depth}"), resume(())))
             .await;
     }
@@ -49,11 +49,11 @@ async fn enter_impl<'a>(
 }
 
 fn enter<'a>(
-    pause: &'a PromptImpl<'_, ()>,
+    prompt: &'a Prompt<'_, ()>,
     actions: &'a mut dyn Iterator<Item = Action>,
     depth: u16,
 ) -> LocalBoxFuture<'a, ()> {
-    enter_impl(pause, actions, depth).boxed_local()
+    enter_impl(prompt, actions, depth).boxed_local()
 }
 
 #[tokio::main]

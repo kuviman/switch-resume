@@ -54,7 +54,7 @@ async fn handle_cancel<'a, T: 'a, Fut: Future<Output = T> + 'a>(
 ) -> T {
     prompt(|reset_handler| async move {
         struct CancelHandler<'a, T> {
-            reset_handler: PromptImpl<'a, T>,
+            reset_handler: Prompt<'a, T>,
         }
 
         #[async_trait(?Send)]
