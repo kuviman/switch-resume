@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use futures::{executor::block_on, Future};
-use shift_reset::*;
-use std::{convert::Infallible, path::Path, rc::Rc};
+use std::{convert::Infallible, path::Path};
 
 /// Basic logging effect
 #[async_trait(?Send)]
@@ -52,9 +51,9 @@ trait Cancel<T> {
 async fn handle_cancel<'a, T: 'a, Fut: Future<Output = T> + 'a>(
     f: impl FnOnce(Box<dyn Cancel<T> + 'a>) -> Fut + 'a,
 ) -> T {
-    prompt(|reset_handler| async move {
+    shift_reset::run(|task| async move {
         struct CancelHandler<'a, T> {
-            reset_handler: Prompt<'a, T>,
+            reset_handler: shift_reset::Task<'a, T>,
         }
 
         #[async_trait(?Send)]
@@ -64,7 +63,9 @@ async fn handle_cancel<'a, T: 'a, Fut: Future<Output = T> + 'a>(
                 unreachable!()
             }
         }
-        let cancel = CancelHandler { reset_handler };
+        let cancel = CancelHandler {
+            reset_handler: task,
+        };
         f(Box::new(cancel)).await
     })
     .await

@@ -1,5 +1,4 @@
 use futures::{future::LocalBoxFuture, prelude::*};
-use shift_reset::*;
 
 #[derive(Debug)]
 enum Action {
@@ -27,7 +26,7 @@ async fn transition<T>(desc: String, into: impl Future<Output = T>) -> T {
 }
 
 async fn enter_impl<'a>(
-    prompt: &'a Prompt<'_, ()>,
+    task: &'a shift_reset::Task<'_, ()>,
     actions: &'a mut dyn Iterator<Item = Action>,
     depth: u16,
 ) {
@@ -36,12 +35,11 @@ async fn enter_impl<'a>(
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         transition(
             format!("entering {}", depth + 1),
-            enter(prompt, actions, depth + 1),
+            enter(task, actions, depth + 1),
         )
         .await;
         println!("Now back to depth {depth}");
-        prompt
-            .pause(move |resume| transition(format!("back to {depth}"), resume(())))
+        task.pause(move |resume| transition(format!("back to {depth}"), resume(())))
             .await;
     }
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -49,18 +47,18 @@ async fn enter_impl<'a>(
 }
 
 fn enter<'a>(
-    prompt: &'a Prompt<'_, ()>,
+    task: &'a shift_reset::Task<'_, ()>,
     actions: &'a mut dyn Iterator<Item = Action>,
     depth: u16,
 ) -> LocalBoxFuture<'a, ()> {
-    enter_impl(prompt, actions, depth).boxed_local()
+    enter_impl(task, actions, depth).boxed_local()
 }
 
 #[tokio::main]
 async fn main() {
-    prompt(|pause| async move {
+    shift_reset::run(|task| async move {
         enter(
-            &pause,
+            &task,
             &mut [Action::Deeper, Action::Deeper, Action::Back, Action::Deeper]
                 .into_iter()
                 .inspect(|action| println!("Performing {action:?}")),

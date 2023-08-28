@@ -4,11 +4,11 @@ pub type Continuation<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
 type BoxPauseHandler<'a, T> = Box<dyn FnOnce(Continuation<'a, T>) -> Continuation<'a, T> + 'a>;
 
-pub struct Prompt<'a, T: 'a> {
-    sender: async_channel::Sender<BoxPauseHandler<'a, T>>,
+pub struct Task<'a, T: 'a> {
+    pause_handler_sender: async_channel::Sender<BoxPauseHandler<'a, T>>,
 }
 
-impl<'a, T> Prompt<'a, T> {
+impl<'a, T> Task<'a, T> {
     pub async fn pause<
         Value: 'a,
         Fut: Future<Output = T> + 'a,
@@ -17,24 +17,26 @@ impl<'a, T> Prompt<'a, T> {
         &self,
         f: F,
     ) -> Value {
-        let (mut sender, receiver) = async_oneshot::oneshot();
-        self.sender
-            .try_send(Box::new(move |c: Continuation<'a, T>| {
-                Box::pin(f(Box::new(move |value| {
-                    sender.send(value).expect("WTF");
-                    c
+        let (mut resume_arg_sender, resume_arg_receiver) = async_oneshot::oneshot();
+        self.pause_handler_sender
+            .try_send(Box::new(move |continuation: Continuation<'a, T>| {
+                Box::pin(f(Box::new(move |arg| {
+                    resume_arg_sender.send(arg).expect("WTF");
+                    continuation
                 }))) as Continuation<'a, T>
             }) as BoxPauseHandler<'a, T>)
             .expect("WTF");
-        receiver.await.expect("HUH")
+        resume_arg_receiver.await.expect("HUH")
     }
 }
 
-pub async fn prompt<'a, T: 'a, Fut: Future<Output = T> + 'a>(
-    f: impl FnOnce(Prompt<'a, T>) -> Fut + 'a,
+pub async fn run<'a, T: 'a, Fut: Future<Output = T> + 'a>(
+    f: impl FnOnce(Task<'a, T>) -> Fut + 'a,
 ) -> T {
-    let (sender, receiver) = async_channel::bounded(1);
-    let handler = Prompt { sender };
+    let (pause_handler_sender, pause_handler_receiver) = async_channel::bounded(1);
+    let handler = Task {
+        pause_handler_sender,
+    };
     let mut continuation: Continuation<'a, T> = Box::pin(f(handler));
     loop {
         let poll = Future::poll(
@@ -42,9 +44,9 @@ pub async fn prompt<'a, T: 'a, Fut: Future<Output = T> + 'a>(
             &mut std::task::Context::from_waker(futures::task::noop_waker_ref()),
         );
         match poll {
-            Poll::Ready(value) => return value,
+            Poll::Ready(result) => return result,
             Poll::Pending => {
-                match receiver.try_recv() {
+                match pause_handler_receiver.try_recv() {
                     Ok(pause_handler) => {
                         continuation = pause_handler(continuation);
                     }

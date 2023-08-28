@@ -1,16 +1,13 @@
-use shift_reset::*;
-
 #[tokio::main]
 async fn main() {
-    prompt(|pause| async move {
+    shift_reset::run(|task| async move {
         println!("begin");
-        pause
-            .pause(|resume| async move {
-                println!("before");
-                resume(()).await;
-                println!("after");
-            })
-            .await;
+        task.pause(|resume| async move {
+            println!("before");
+            resume(()).await;
+            println!("after");
+        })
+        .await;
         println!("end");
     })
     .await;
