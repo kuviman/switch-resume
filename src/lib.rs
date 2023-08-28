@@ -19,11 +19,6 @@ pub trait ResetHandler<'a> {
 pub type ShiftArg<'a, T> =
     Box<dyn FnOnce(Continuation<'a, T>) -> Pin<Box<dyn Future<Output = T> + 'a>> + 'a>;
 
-struct ResetExecutor<'a, T> {
-    continuation: Continuation<'a, T>,
-    receiver: async_channel::Receiver<ShiftArg<'a, T>>,
-}
-
 pub struct ResetHandlerImpl<'a, T: 'a> {
     sender: async_channel::Sender<ShiftArg<'a, T>>,
 }
@@ -52,42 +47,28 @@ impl<'a, T> ResetHandler<'a> for ResetHandlerImpl<'a, T> {
     }
 }
 
-impl<'a, T: 'a> ResetExecutor<'a, T> {
-    pub fn new<Fut: Future<Output = T> + 'a>(
-        f: impl 'a + FnOnce(ResetHandlerImpl<'a, T>) -> Fut,
-    ) -> Self {
-        let (sender, receiver) = async_channel::bounded(1);
-        let handler = ResetHandlerImpl { sender };
-        Self {
-            continuation: Box::pin(f(handler)),
-            receiver,
-        }
-    }
-    pub async fn run(mut self) -> T {
-        let receiver = self.receiver;
-        loop {
-            let poll = Future::poll(
-                self.continuation.as_mut(),
-                &mut std::task::Context::from_waker(futures::task::noop_waker_ref()),
-            );
-            match poll {
-                Poll::Ready(value) => return value,
-                Poll::Pending => {
-                    match receiver.try_recv() {
-                        Ok(shift_arg) => {
-                            self.continuation = shift_arg(self.continuation);
-                        }
-                        Err(async_channel::TryRecvError::Empty) => {}
-                        Err(_) => unreachable!(),
-                    };
-                }
-            }
-        }
-    }
-}
-
 pub async fn reset<'a, T: 'a, Fut: Future<Output = T> + 'a>(
     f: impl FnOnce(ResetHandlerImpl<'a, T>) -> Fut + 'a,
 ) -> T {
-    ResetExecutor::new(f).run().await
+    let (sender, receiver) = async_channel::bounded(1);
+    let handler = ResetHandlerImpl { sender };
+    let mut continuation: Continuation<'a, T> = Box::pin(f(handler));
+    loop {
+        let poll = Future::poll(
+            continuation.as_mut(),
+            &mut std::task::Context::from_waker(futures::task::noop_waker_ref()),
+        );
+        match poll {
+            Poll::Ready(value) => return value,
+            Poll::Pending => {
+                match receiver.try_recv() {
+                    Ok(shift_arg) => {
+                        continuation = shift_arg(continuation);
+                    }
+                    Err(async_channel::TryRecvError::Empty) => {}
+                    Err(_) => unreachable!(),
+                };
+            }
+        }
+    }
 }
