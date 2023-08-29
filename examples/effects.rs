@@ -51,9 +51,9 @@ trait Cancel<T> {
 async fn handle_cancel<'a, T: 'a, Fut: Future<Output = T> + 'a>(
     f: impl FnOnce(Box<dyn Cancel<T> + 'a>) -> Fut + 'a,
 ) -> T {
-    shift_reset::run(|task| async move {
+    pausible::run(|task| async move {
         struct CancelHandler<'a, T> {
-            reset_handler: shift_reset::Task<'a, T>,
+            reset_handler: pausible::Task<'a, T>,
         }
 
         #[async_trait(?Send)]

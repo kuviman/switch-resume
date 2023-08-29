@@ -1,6 +1,6 @@
 #[tokio::main]
 async fn main() {
-    shift_reset::run(|task| async move {
+    pausible::run(|task| async move {
         println!("begin");
         task.pause(|resume| async move {
             println!("before");
