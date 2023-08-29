@@ -1,31 +1,29 @@
-//! This crates provides a functionality for running pausible tasks (futures).
+//! This crates provides functionality for running switchable tasks (futures).
 //!
-//! When pausing, current task continuation is captured
-//! and passed as an argument to your pause handler.
+//! Switching is a control flow mechanism that stops normal execution of current task (current function),
+//! captures current task continuation and passes it as an argument to the provided async fn.
+//! The task then proceeds by evaluating that fn, instead of resuming normally.
 //!
-//! The pause handler in turn becomes the new continuation -
-//! its result becomes the result of the task.
+//! In order to resume normal execution, the passed resumption object can be called explicitly.
 //!
-//! This means that the pause handler can completely ignore the resumption,
-//! replacing it with anything else,
-//! or run it and use its result to produce something new.
+//! This is an implementation of [delimited continuations](https://en.m.wikipedia.org/wiki/Delimited_continuation) in Rust using async that works on stable.
 //!
 //! # Examples
 //! ```
 //! # futures::executor::block_on(async {
-//! async fn on_pause(resume: pausible::Resume<'_, i32, i32>) -> i32 {
-//!     println!("Task has been paused");
+//! async fn bar(resume: switch_resume::Resume<'_, i32, i32>) -> i32 {
+//!     println!("foo has been paused, started bar");
 //!     let resume_result = resume(69).await;
-//!     assert_eq!(resume_result, -1);
-//!     420
+//!     assert_eq!(resume_result, -1); // This is the result of foo
+//!     420 // This is the final result of task
 //! }
-//! async fn run(task: pausible::Task<'_, i32>) -> i32 {
-//!     println!("Task has been started");
-//!     let value = task.pause(on_pause).await;
-//!     println!("Task has been resumed with {value}. Nice!");
-//!     -1
+//! async fn foo(task: switch_resume::Task<'_, i32>) -> i32 {
+//!     println!("foo started");
+//!     let value = task.switch(bar).await;
+//!     println!("foo was resumed with {value}. Nice!");
+//!     -1 // This is not the final task result since we switched to bar
 //! }
-//! let task_result = pausible::run(run).await;
+//! let task_result = switch_resume::run(foo).await;
 //! assert_eq!(task_result, 420);
 //! # });
 //! ```
@@ -42,7 +40,9 @@ pub struct Task<'a, T: 'a> {
 }
 
 impl<'a, T> Task<'a, T> {
-    pub async fn pause<
+    /// Pause current task execution, switching to a new future.
+    /// Current continuation is captured and passed as argument.
+    pub async fn switch<
         ResumeArg: 'a,
         Fut: Future<Output = T> + 'a,
         F: FnOnce(Resume<'a, ResumeArg, T>) -> Fut + 'a,
@@ -63,11 +63,10 @@ impl<'a, T> Task<'a, T> {
     }
 }
 
-/// Run a pausible task.
+/// Run a task with switch capability.
 ///
-/// Provided function will be called with a handle to the [Task],
-/// and the future returned will be able
-/// to be paused and resumed when needed using that handle.
+/// Provided async function will be called with a handle to the [Task],
+/// and will be able to use switch operation using that handle.
 pub async fn run<'a, T: 'a, Fut: Future<Output = T> + 'a>(
     f: impl FnOnce(Task<'a, T>) -> Fut + 'a,
 ) -> T {

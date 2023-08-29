@@ -1,8 +1,8 @@
 #[tokio::main]
 async fn main() {
-    pausible::run(|task| async move {
+    switch_resume::run(|task| async move {
         println!("begin");
-        task.pause(|resume| async move {
+        task.switch(|resume| async move {
             println!("before");
             resume(()).await;
             println!("after");

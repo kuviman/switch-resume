@@ -26,7 +26,7 @@ async fn transition<T>(desc: String, into: impl Future<Output = T>) -> T {
 }
 
 async fn enter_impl<'a>(
-    task: &'a pausible::Task<'_, ()>,
+    task: &'a switch_resume::Task<'_, ()>,
     actions: &'a mut dyn Iterator<Item = Action>,
     depth: u16,
 ) {
@@ -39,7 +39,7 @@ async fn enter_impl<'a>(
         )
         .await;
         println!("Now back to depth {depth}");
-        task.pause(move |resume| transition(format!("back to {depth}"), resume(())))
+        task.switch(move |resume| transition(format!("back to {depth}"), resume(())))
             .await;
     }
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -47,7 +47,7 @@ async fn enter_impl<'a>(
 }
 
 fn enter<'a>(
-    task: &'a pausible::Task<'_, ()>,
+    task: &'a switch_resume::Task<'_, ()>,
     actions: &'a mut dyn Iterator<Item = Action>,
     depth: u16,
 ) -> LocalBoxFuture<'a, ()> {
@@ -56,7 +56,7 @@ fn enter<'a>(
 
 #[tokio::main]
 async fn main() {
-    pausible::run(|task| async move {
+    switch_resume::run(|task| async move {
         enter(
             &task,
             &mut [Action::Deeper, Action::Deeper, Action::Back, Action::Deeper]
