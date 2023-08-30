@@ -82,8 +82,8 @@ pub async fn run<'a, T: 'a, Fut: Future<Output = T> + 'a>(
             Poll::Ready(result) => return result,
             Poll::Pending => {
                 match switch_receiver.try_recv() {
-                    Ok(pause_handler) => {
-                        continuation = pause_handler(continuation);
+                    Ok(switch) => {
+                        continuation = switch(continuation);
                     }
                     Err(async_channel::TryRecvError::Empty) => {
                         // TODO wait for waker
