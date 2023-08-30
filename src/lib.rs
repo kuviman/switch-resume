@@ -33,10 +33,10 @@ pub type Resume<'a, Arg, T> = Box<dyn FnOnce(Arg) -> Continuation<'a, T> + 'a>;
 
 type Continuation<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
-type BoxPauseHandler<'a, T> = Box<dyn FnOnce(Continuation<'a, T>) -> Continuation<'a, T> + 'a>;
+type Switch<'a, T> = Box<dyn FnOnce(Continuation<'a, T>) -> Continuation<'a, T> + 'a>;
 
 pub struct Task<'a, T: 'a> {
-    switch_sender: async_channel::Sender<BoxPauseHandler<'a, T>>,
+    switch_sender: async_channel::Sender<Switch<'a, T>>,
 }
 
 impl<'a, T> Task<'a, T> {
@@ -57,7 +57,7 @@ impl<'a, T> Task<'a, T> {
                     resume_arg_sender.send(arg).expect("WTF");
                     continuation
                 }))) as Continuation<'a, T>
-            }) as BoxPauseHandler<'a, T>)
+            }) as Switch<'a, T>)
             .expect("WTF");
         resume_arg_receiver.await.expect("HUH")
     }
