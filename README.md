@@ -1,39 +1,11 @@
-# Effect System for Rust
+# switch-resume
 
-## What is effect system?
+This crates provides functionality for running switchable tasks (futures).
 
-Categories of effects:
+Switching is a control flow mechanism that stops normal execution of current task (current function),
+captures current task continuation and passes it as an argument to the provided async fn.
+The task then proceeds by evaluating that fn, instead of resuming normally.
 
-### Tag effects
+In order to resume normal execution, the passed resumption object can be called explicitly.
 
-This is like a tag on a function, allowing it to be executed only in specific contexts, like:
-
-- `unsafe`
-- (`unchecked`)[https://sayan.blog/2022/02/rust-unchecked-keyword/]
-
-### Unwind effects
-
-Stop executing, instead unwind to the closest handler
-
-- `break` from a loop
-- `return` from a function
-- Exceptions - `throw/catch`
-
-### Linear effect
-
-This is just a function call
-
-### Delayed execution
-
-Pause execution, and resume it at a later point in time:
-
-- `await`
-
-### Continuing execution multiple times
-
-Not going to be covered
-
-## My usecase
-
-
-
+This is an implementation of [delimited continuations](https://en.m.wikipedia.org/wiki/Delimited_continuation) in Rust using async that works on stable.

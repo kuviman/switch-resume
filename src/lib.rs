@@ -1,40 +1,23 @@
-//! This crates provides functionality for running switchable tasks (futures).
-//!
-//! Switching is a control flow mechanism that stops normal execution of current task (current function),
-//! captures current task continuation and passes it as an argument to the provided async fn.
-//! The task then proceeds by evaluating that fn, instead of resuming normally.
-//!
-//! In order to resume normal execution, the passed resumption object can be called explicitly.
-//!
-//! This is an implementation of [delimited continuations](https://en.m.wikipedia.org/wiki/Delimited_continuation) in Rust using async that works on stable.
-//!
+#![doc = include_str!("../README.md")]
 //! # Examples
 //! ```
-//! # futures::executor::block_on(async {
-//! async fn bar(resume: switch_resume::Resume<'_, i32, i32>) -> i32 {
-//!     println!("foo has been paused, started bar");
-//!     let resume_result = resume(69).await;
-//!     assert_eq!(resume_result, -1); // This is the result of foo
-//!     420 // This is the final result of task
-//! }
-//! async fn foo(task: switch_resume::Task<'_, i32>) -> i32 {
-//!     println!("foo started");
-//!     let value = task.switch(bar).await;
-//!     println!("foo was resumed with {value}. Nice!");
-//!     -1 // This is not the final task result since we switched to bar
-//! }
-//! let task_result = switch_resume::run(foo).await;
-//! assert_eq!(task_result, 420);
-//! # });
+#![doc = include_str!("../examples/simple.rs")]
 //! ```
+//!
+//! ```
+#![doc = include_str!("../examples/foobar.rs")]
+//! ```
+
 use std::{future::Future, pin::Pin, task::Poll};
 
+/// Async function passed to [Task::switch]. Represents the paused continuation.
 pub type Resume<'a, Arg, T> = Box<dyn FnOnce(Arg) -> Continuation<'a, T> + 'a>;
 
 type Continuation<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
 type Switch<'a, T> = Box<dyn FnOnce(Continuation<'a, T>) -> Continuation<'a, T> + 'a>;
 
+/// Handle to the running task.
 pub struct Task<'a, T: 'a> {
     switch_sender: async_channel::Sender<Switch<'a, T>>,
 }
