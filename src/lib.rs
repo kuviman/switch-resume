@@ -55,25 +55,23 @@ pub async fn run<'a, T: 'a, Fut: Future<Output = T> + 'a>(
 ) -> T {
     let (switch_sender, switch_receiver) = async_channel::bounded(1);
     let task = Task { switch_sender };
-    let mut continuation: Continuation<'a, T> = Box::pin(f(task));
-    loop {
-        let poll = Future::poll(
-            continuation.as_mut(),
-            &mut std::task::Context::from_waker(futures::task::noop_waker_ref()),
-        );
+    let mut continuation: Option<Continuation<'a, T>> = Some(Box::pin(f(task)));
+    std::future::poll_fn(move |cx| {
+        let poll = Future::poll(continuation.as_mut().unwrap().as_mut(), cx);
         match poll {
-            Poll::Ready(result) => return result,
+            Poll::Ready(result) => Poll::Ready(result),
             Poll::Pending => {
                 match switch_receiver.try_recv() {
                     Ok(switch) => {
-                        continuation = switch(continuation);
+                        continuation = Some(switch(continuation.take().unwrap()));
                     }
-                    Err(async_channel::TryRecvError::Empty) => {
-                        // TODO wait for waker
-                    }
-                    Err(_) => unreachable!(),
+                    Err(
+                        async_channel::TryRecvError::Empty | async_channel::TryRecvError::Closed,
+                    ) => {}
                 };
+                Poll::Pending
             }
         }
-    }
+    })
+    .await
 }
