@@ -62,7 +62,7 @@ But since we already most of those in Rust, it has been hard for me to come up w
 
 ## Game state transitions
 
-I am currently actively working on a game called [linksider](https://kuviman.itch.io/linksider), originally made for bevy jam #3, has since been rewritten into my own custom engine.
+I am currently actively working on a game called **linksider**, originally [made for bevy jam #3](https://kuviman.itch.io/linksider), has since been rewritten into my own custom engine.
 
 So, I have been using async functions for my state management like this:
 
@@ -96,9 +96,13 @@ async fn transition_into<T>(f: impl Future<Output = T>) -> T {
         // Render the transition visual effect
         ...
     };
-    match futures::future::select(transition_vfx, f).await {
-        future::Either::Left(((), f)) => f.await,
-        future::Either::Right((result, _transition_vfx)) => {
+    match select(transition_vfx, f).await {
+        Left(((), f)) => {
+            // Transition effect finished,
+            // continue without visual effect
+            f.await
+        }
+        Right((result, _transition_vfx)) => {
             // State we transitioned into exited before
             // visual effect finished,
             // don't show the rest of transition effect
@@ -118,4 +122,4 @@ main_menu.switch(|resume| async move {
 }).await;
 ```
 
-I have omitted some details here, but that is in general how it actually works now in the game.
+I have omitted a lot of details here, but that is in general how it actually works now in the game.
