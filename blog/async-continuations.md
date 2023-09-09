@@ -110,6 +110,7 @@ async fn play() {
 
 Then, I wanted to have a transition between game states -
 from main menu into the play state, and then after exiting the play state back into the main menu.
+I am talking about transitions like crossfading or similar.
 
 Going into the play state is kind of easy, we just call a `transition_into` fn with `play()` as its argument:
 
@@ -117,7 +118,9 @@ Going into the play state is kind of easy, we just call a `transition_into` fn w
 transition_into(play()).await;
 ```
 
-Here, `transition_into` is running the `play()` game state future at the same time as rendering the transition effect, allowing me to interact with the state I transitioned into like if no visual effect was applied. It looks something like this:
+Here, `transition_into` is running the `play()` game state future at the same time as rendering the transition effect,
+allowing me to interact with the state I transitioned into while the transition is happening.
+It looks something like this:
 
 ```rs
 async fn transition_into<T>(f: impl Future<Output = T>) -> T {
