@@ -50,7 +50,7 @@ impl<'a, T> Task<'a, T> {
 ///
 /// Provided async function will be called with a handle to the [Task],
 /// and will be able to use switch operation using that handle.
-pub async fn run<'a, T: std::fmt::Debug + 'a, Fut: Future<Output = T> + 'a>(
+pub async fn run<'a, T: 'a, Fut: Future<Output = T> + 'a>(
     f: impl FnOnce(Task<'a, T>) -> Fut + 'a,
 ) -> T {
     let (switch_sender, switch_receiver) = async_channel::bounded(1);

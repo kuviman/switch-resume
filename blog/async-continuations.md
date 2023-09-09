@@ -58,7 +58,36 @@ Right now, in Rust async/await is implemented on top of generators,
 and this library is built on top of async/await.
 But it could in theory be the other way around, and this functionality could be used to implement language features such as async/await, generators, returning from functions, breaking from loops, throwing exceptions, etc.
 
-But since we already have most of those in Rust, it has been hard for me to come up with simple use cases, but still here's what I actually used it for myself:
+Here's an example of returning from outer functions (ever wanted to use `?` inside `Iterator::map` to exit outer function?):
+
+```rs
+let result: Result<i32, &str> = switch_resume::run(|task| async move {
+    let task = &task;
+    let sum = futures::stream::iter([1, 2, 3])
+        .then(|x| async move {
+            if x % 2 == 0 {
+                // return Err from that task
+                let _: () = task
+                    .switch(|_resume| async move { Err("There was an even number!") })
+                    .await;
+            }
+            x
+        })
+        .fold(0, |acc, x| async move { acc + x })
+        .await;
+    // this will not be executed, since we stopped the task
+    // by returning Err from it when encountered 2
+    Ok(sum)
+})
+.await;
+assert!(result.is_err());
+```
+
+Although, this example does not really use the continuation - we switch the task to return `Err` and never `resume`.
+Actually using the continuation is usually shown to be used to implement async/await or generators,
+but it doesn't really make sense to do in current Rust.
+
+So, it has been hard for me to come up with simple use cases, but still here's what I actually used it for myself:
 
 ## Game state transitions
 
