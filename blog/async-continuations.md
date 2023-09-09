@@ -152,3 +152,6 @@ main_menu.switch(|resume| async move {
 ```
 
 I have omitted a lot of details here, but that is in general how it actually works now in the game.
+
+In my opinion, this allows to write this logic clearer than other methods,
+similarly to how async/await is clearer to write that implementing `Future` trait manually.
