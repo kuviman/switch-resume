@@ -58,7 +58,7 @@ Right now, in Rust async/await is implemented on top of generators,
 and this library is built on top of async/await.
 But it could in theory be the other way around, and this functionality could be used to implement language features such as async/await, generators, returning from functions, breaking from loops, throwing exceptions, etc.
 
-But since we already most of those in Rust, it has been hard for me to come up with simple use cases, but still here's what I actually used it for myself:
+But since we already have most of those in Rust, it has been hard for me to come up with simple use cases, but still here's what I actually used it for myself:
 
 ## Game state transitions
 
