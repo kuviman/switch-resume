@@ -88,6 +88,26 @@ Going into the play state is kind of easy, we just call a `transition_into` fn w
 transition_into(play()).await;
 ```
 
+Here, `transition_into` is running the `play()` game state future at the same time as rendering the transition effect, allowing me to interact with the state I transitioned into like if no visual effect was applied. It looks something like this:
+
+```rs
+async fn transition_into<T>(f: impl Future<Output = T>) -> T {
+    let transition_vfx = async {
+        // Render the transition visual effect
+        ...
+    };
+    match futures::future::select(transition_vfx, f).await {
+        future::Either::Left(((), f)) => f.await,
+        future::Either::Right((result, _transition_vfx)) => {
+            // State we transitioned into exited before
+            // visual effect finished,
+            // don't show the rest of transition effect
+            result
+        }
+    }
+}
+```
+
 But in order to go back into the main menu, we need to transition into the continuation of the `main_menu` fn.
 
 So in order to get that continuation, we use the `switch_resume` crate:
