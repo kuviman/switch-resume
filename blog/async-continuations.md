@@ -1,7 +1,7 @@
 # Delimited async continuations
 
 [switch-resume](https://crates.io/crates/switch-resume)
-is an experimental crate I have released recently which provides [delimited continuation](https://en.wikipedia.org/wiki/Delimited_continuation) functionality is async Rust.
+is an experimental crate I have released recently which provides [delimited continuation](https://en.wikipedia.org/wiki/Delimited_continuation) functionality in async Rust.
 
 If you are not familiar with the concept of continuations, here I'll try my best to explain what it is.
 
