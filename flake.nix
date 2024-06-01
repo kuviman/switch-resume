@@ -18,12 +18,11 @@
       with pkgs;
       {
         devShells.default = mkShell {
-          buildInputs = [
-            rust-bin.stable.latest.default
+          packages = [
+            (rust-bin.stable.latest.default.override {
+              extensions = [ "rust-std" ];
+            })
           ];
-
-          shellHook = ''
-          '';
         };
       }
     );
