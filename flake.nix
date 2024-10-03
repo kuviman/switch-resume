@@ -22,6 +22,7 @@
             (rust-bin.stable.latest.default.override {
               extensions = [ "rust-std" ];
             })
+            rust-analyzer
           ];
         };
       }
