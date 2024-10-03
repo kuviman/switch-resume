@@ -1,4 +1,4 @@
-use futures::{future::LocalBoxFuture, prelude::*};
+use futures::prelude::*;
 
 #[derive(Debug)]
 enum Action {
@@ -25,9 +25,9 @@ async fn transition<T>(desc: String, into: impl Future<Output = T>) -> T {
     }
 }
 
-async fn enter_impl<'a>(
-    task: &'a switch_resume::Task<'_, ()>,
-    actions: &'a mut dyn Iterator<Item = Action>,
+async fn enter_impl(
+    task: &switch_resume::Task<'_, ()>,
+    actions: &mut dyn Iterator<Item = Action>,
     depth: u16,
 ) {
     println!("You have now entered depth {depth}");
@@ -46,12 +46,12 @@ async fn enter_impl<'a>(
     println!("You have now exited depth {depth}");
 }
 
-fn enter<'a>(
-    task: &'a switch_resume::Task<'_, ()>,
-    actions: &'a mut dyn Iterator<Item = Action>,
+async fn enter(
+    task: &switch_resume::Task<'_, ()>,
+    actions: &mut dyn Iterator<Item = Action>,
     depth: u16,
-) -> LocalBoxFuture<'a, ()> {
-    enter_impl(task, actions, depth).boxed_local()
+) {
+    enter_impl(task, actions, depth).boxed_local().await
 }
 
 #[tokio::main]
